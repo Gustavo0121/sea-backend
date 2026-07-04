@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:file::memory:?cache=shared
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+logging:
+  level:
+    com.sea.backend: INFO

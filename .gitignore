@@ -22,3 +22,21 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+CLAUDE.md
+
+# Maven
+target/
+
+# IDE
+.idea/
+*.iws
+*.iml
+.vscode/
+
+# SQLite database files
+*.db
+*.db-journal
+
+# Logs
+logs/
