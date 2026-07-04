@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:sea-backend-dev.db
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    com.sea.backend: DEBUG
