@@ -2,13 +2,14 @@
 
 API REST para cadastro de clientes (CRUD), com autenticação e autorização por perfil (Admin / Usuário Padrão).
 
-> Projeto em desenvolvimento incremental. Nesta fase (Fase 0 — setup) a aplicação já sobe, com Swagger e health-check disponíveis; autenticação e CRUD de clientes chegam nas próximas fases.
+> Projeto em desenvolvimento incremental. Nesta fase (Fase 1 — modelagem de dados) as entidades JPA (Cliente, Endereço, Telefone, Email, Usuário) já estão mapeadas e o banco SQLite é criado automaticamente com os dois usuários iniciais (senha em BCrypt). Autenticação (JWT) e CRUD de clientes chegam nas próximas fases.
 
 ## Stack
 
 - Java 8+
 - Spring Boot 2.7 (Web, Data JPA, Validation, Actuator)
 - SQLite (via `sqlite-jdbc`)
+- Spring Security Crypto (BCrypt)
 - Maven
 - springdoc-openapi (Swagger)
 - JUnit 5 + Mockito + Jacoco
@@ -37,7 +38,18 @@ API REST para cadastro de clientes (CRUD), com autenticação e autorização po
    java -jar target/backend-0.0.1-SNAPSHOT.jar
    ```
 
-3. A aplicação sobe em `http://localhost:8080`. O banco SQLite (`sea-backend-dev.db`) é criado automaticamente na raiz do projeto.
+3. A aplicação sobe em `http://localhost:8080`. O banco SQLite (`sea-backend-dev.db`) é criado automaticamente na raiz do projeto, com as tabelas e os dois usuários iniciais já persistidos.
+
+## Usuários iniciais
+
+Criados automaticamente na primeira subida da aplicação (senha armazenada com BCrypt):
+
+| Perfil  | Login   | Senha        |
+|---------|---------|--------------|
+| Admin   | `admin` | `123qwe!@#`  |
+| Usuário | `user`  | `123qwe123`  |
+
+Ainda não há endpoint de login (chega na Fase 2 — Autenticação JWT).
 
 ## Verificando se está no ar
 
@@ -70,12 +82,22 @@ src/main/java/com/sea/backend
 ├── controller   # endpoints REST
 ├── service      # regras de negócio
 ├── repository   # acesso a dados (Spring Data JPA)
-├── entity       # entidades JPA
+├── entity       # entidades JPA (Cliente, Endereco, Telefone, Email, Usuario, Role, TipoTelefone)
 ├── dto          # objetos de entrada/saída da API
 ├── mapper       # conversão entre Entity e DTO
-├── config       # configurações (OpenAPI, dialect SQLite, etc.)
+├── config       # configurações (OpenAPI, dialect SQLite, seed de usuários, etc.)
 ├── security     # autenticação e autorização (JWT)
 ├── validation   # validadores customizados
 ├── exception    # tratamento global de erros
 └── utils        # utilitários
 ```
+
+## Modelo de dados (Fase 1)
+
+- **Usuario**: `login`, `senha` (BCrypt), `role` (`ADMIN` ou `USER`).
+- **Cliente**: `nome`, `cpf` (único), um `Endereco` e listas de `Telefone`/`Email`.
+- **Endereco**: `cep`, `logradouro`, `bairro`, `cidade`, `uf`, `complemento` (opcional).
+- **Telefone**: `tipo` (`RESIDENCIAL`, `COMERCIAL`, `CELULAR`) e `numero`.
+- **Email**: `endereco`.
+
+As regras de validação, mascaramento (CPF/telefone/CEP) e os endpoints de CRUD ainda não foram implementados — chegam nas próximas fases.
