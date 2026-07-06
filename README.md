@@ -2,7 +2,7 @@
 
 API REST para cadastro de clientes (CRUD), com autenticação e autorização por perfil (Admin / Usuário Padrão).
 
-> Projeto em desenvolvimento incremental. Login (JWT) e autorização por perfil já estão prontos (Fase 2), assim como os DTOs, validações e mappers do domínio Cliente (Fase 3). O CRUD de `/clientes` propriamente dito (Controller/Service/Repository) chega na Fase 5.
+> Projeto em desenvolvimento incremental. Login (JWT) e autorização por perfil já estão prontos (Fase 2), assim como os DTOs, validações e mappers do domínio Cliente (Fase 3) e a consulta de CEP via ViaCEP (Fase 4). O CRUD de `/clientes` propriamente dito (Controller/Service/Repository) chega na Fase 5.
 
 ## Stack
 
@@ -74,6 +74,7 @@ Regras de autorização:
 | `POST /clientes`              | ✅    | ❌ (403) |
 | `PUT /clientes/{id}`          | ✅    | ❌ (403) |
 | `DELETE /clientes/{id}`       | ✅    | ❌ (403) |
+| `GET /enderecos/{cep}`        | ✅    | ❌ (403) |
 
 Requisições sem token ou com token inválido/expirado retornam `401`. O CRUD de `/clientes` propriamente dito chega na Fase 5 — por ora as regras acima já valem para qualquer rota sob esse prefixo.
 
@@ -137,6 +138,24 @@ Os contratos de entrada/saída de `Cliente` já estão prontos, embora ainda sem
 - **`ClienteMapper`** (+ `EnderecoMapper`, `TelefoneMapper`, `EmailMapper`, em `mapper/`): convertem DTO ↔ Entity, normalizando entrada (`utils.DigitExtractor` extrai só dígitos de CPF/CEP/telefone, `utils.TextSanitizer` colapsa espaços duplicados e remove caracteres de risco de XSS) e mascarando saída (`utils.MaskUtils`).
 
 A checagem de duplicidade de CPF depende do `ClienteRepository`/`ClienteService`, ainda inexistentes — fica para a Fase 5 junto com o restante do CRUD.
+
+## Consulta de CEP via ViaCEP (Fase 4)
+
+```bash
+curl http://localhost:8080/enderecos/01310-100 \
+  -H "Authorization: Bearer <token-admin>"
+```
+
+Resposta (mesmo formato de `EnderecoResponseDTO`, pronta para pré-preencher o formulário de endereço; `complemento` fica em branco para o usuário preencher):
+```json
+{ "cep": "01310-100", "logradouro": "Avenida Paulista", "bairro": "Bela Vista", "cidade": "São Paulo", "uf": "SP", "complemento": null }
+```
+
+- Aceita CEP com ou sem máscara (`01310100` ou `01310-100`); formato inválido retorna `400` antes de qualquer chamada externa.
+- CEP inexistente (ViaCEP responde `{"erro": true}`) retorna `404`.
+- Indisponibilidade/timeout do ViaCEP retorna `503`, sem stacktrace.
+- Respostas são cacheadas em memória (`ConcurrentMapCacheManager`, cache `enderecos-cep`) por CEP normalizado (dígitos), evitando chamadas repetidas ao mesmo endereço.
+- Restrito a `ADMIN`, já que só esse perfil cria/edita clientes.
 
 ## Segurança (Fase 2)
 

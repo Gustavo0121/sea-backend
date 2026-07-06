@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
 
 /**
@@ -21,12 +23,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex, WebRequest request) {
-        ErrorResponse body = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
-                "Credenciais inválidas.",
-                path(request)
-        );
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+        return build(HttpStatus.UNAUTHORIZED, "Credenciais inválidas.", request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -34,22 +31,35 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
-        ErrorResponse body = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                message.isEmpty() ? "Dados inválidos." : message,
-                path(request)
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        return build(HttpStatus.BAD_REQUEST, message.isEmpty() ? "Dados inválidos." : message, request);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException ex, WebRequest request) {
+        String message = ex.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .collect(Collectors.joining("; "));
+        return build(HttpStatus.BAD_REQUEST, message.isEmpty() ? "Dados inválidos." : message, request);
+    }
+
+    @ExceptionHandler(CepNaoEncontradoException.class)
+    public ResponseEntity<ErrorResponse> handleCepNaoEncontradoException(CepNaoEncontradoException ex, WebRequest request) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ViaCepIndisponivelException.class)
+    public ResponseEntity<ErrorResponse> handleViaCepIndisponivelException(ViaCepIndisponivelException ex, WebRequest request) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, WebRequest request) {
-        ErrorResponse body = new ErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Erro interno inesperado.",
-                path(request)
-        );
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno inesperado.", request);
+    }
+
+    private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, WebRequest request) {
+        ErrorResponse body = new ErrorResponse(status.value(), message, path(request));
+        return ResponseEntity.status(status).body(body);
     }
 
     private String path(WebRequest request) {
