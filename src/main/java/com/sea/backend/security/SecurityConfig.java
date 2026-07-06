@@ -66,6 +66,7 @@ public class SecurityConfig {
                 )
                 .authorizeRequests(auth -> auth
                         .antMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .antMatchers(HttpMethod.GET, "/enderecos/**").hasRole("ADMIN")
                         .antMatchers(HttpMethod.GET, "/clientes/**").hasAnyRole("ADMIN", "USER")
                         .antMatchers(HttpMethod.POST, "/clientes/**").hasRole("ADMIN")
                         .antMatchers(HttpMethod.PUT, "/clientes/**").hasRole("ADMIN")

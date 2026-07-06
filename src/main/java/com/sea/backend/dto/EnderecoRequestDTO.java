@@ -1,5 +1,7 @@
 package com.sea.backend.dto;
 
+import com.sea.backend.utils.CepFormato;
+
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
@@ -7,7 +9,7 @@ import javax.validation.constraints.Size;
 public class EnderecoRequestDTO {
 
     @NotBlank(message = "CEP é obrigatório.")
-    @Pattern(regexp = "^\\d{5}-?\\d{3}$", message = "CEP deve estar no formato 00000-000 ou 00000000.")
+    @Pattern(regexp = CepFormato.REGEX, message = "CEP deve estar no formato 00000-000 ou 00000000.")
     private String cep;
 
     @NotBlank(message = "Logradouro é obrigatório.")
