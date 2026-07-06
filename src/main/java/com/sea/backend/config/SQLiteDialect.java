@@ -2,6 +2,7 @@ package com.sea.backend.config;
 
 import org.hibernate.dialect.Dialect;
 import org.hibernate.dialect.identity.IdentityColumnSupport;
+import org.hibernate.dialect.unique.UniqueDelegate;
 
 import java.sql.Types;
 
@@ -16,7 +17,10 @@ public class SQLiteDialect extends Dialect {
         registerColumnType(Types.TINYINT, "tinyint");
         registerColumnType(Types.SMALLINT, "smallint");
         registerColumnType(Types.INTEGER, "integer");
-        registerColumnType(Types.BIGINT, "bigint");
+        // "integer" (not "bigint") is required so that a single-column INTEGER PRIMARY KEY
+        // becomes a true alias for SQLite's rowid, which is what makes IDENTITY generation
+        // (last_insert_rowid()) actually populate the id column instead of leaving it null.
+        registerColumnType(Types.BIGINT, "integer");
         registerColumnType(Types.FLOAT, "float");
         registerColumnType(Types.REAL, "real");
         registerColumnType(Types.DOUBLE, "double");
@@ -71,5 +75,10 @@ public class SQLiteDialect extends Dialect {
     @Override
     public boolean supportsCascadeDelete() {
         return false;
+    }
+
+    @Override
+    public UniqueDelegate getUniqueDelegate() {
+        return new SQLiteUniqueDelegate(this);
     }
 }
