@@ -2,14 +2,14 @@
 
 API REST para cadastro de clientes (CRUD), com autenticação e autorização por perfil (Admin / Usuário Padrão).
 
-> Projeto em desenvolvimento incremental. Nesta fase (Fase 1 — modelagem de dados) as entidades JPA (Cliente, Endereço, Telefone, Email, Usuário) já estão mapeadas e o banco SQLite é criado automaticamente com os dois usuários iniciais (senha em BCrypt). Autenticação (JWT) e CRUD de clientes chegam nas próximas fases.
+> Projeto em desenvolvimento incremental. Nesta fase (Fase 2 — autenticação e autorização) a API já expõe `POST /auth/login` (JWT com expiração curta) e protege rotas por perfil (`ADMIN` / `USER`) via Spring Security stateless. O CRUD de clientes ainda chega nas próximas fases.
 
 ## Stack
 
 - Java 8+
-- Spring Boot 2.7 (Web, Data JPA, Validation, Actuator)
+- Spring Boot 2.7 (Web, Data JPA, Validation, Actuator, Security)
 - SQLite (via `sqlite-jdbc`)
-- Spring Security Crypto (BCrypt)
+- Spring Security + JWT (`jjwt`) com BCrypt
 - Maven
 - springdoc-openapi (Swagger)
 - JUnit 5 + Mockito + Jacoco
@@ -49,7 +49,35 @@ Criados automaticamente na primeira subida da aplicação (senha armazenada com 
 | Admin   | `admin` | `123qwe!@#`  |
 | Usuário | `user`  | `123qwe123`  |
 
-Ainda não há endpoint de login (chega na Fase 2 — Autenticação JWT).
+## Autenticação (Fase 2)
+
+Login gera um JWT (expiração padrão de 15 minutos, configurável via `JWT_EXPIRATION_MS`):
+
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"login":"admin","senha":"123qwe!@#"}'
+```
+
+Resposta:
+```json
+{ "token": "<jwt>", "tipo": "Bearer", "expiraEmSegundos": 900 }
+```
+
+Use o token nas rotas protegidas com `Authorization: Bearer <token>`.
+
+Regras de autorização:
+
+| Rota                          | ADMIN | USER |
+|-------------------------------|:-----:|:----:|
+| `GET /clientes`, `GET /clientes/{id}` | ✅ | ✅ |
+| `POST /clientes`              | ✅    | ❌ (403) |
+| `PUT /clientes/{id}`          | ✅    | ❌ (403) |
+| `DELETE /clientes/{id}`       | ✅    | ❌ (403) |
+
+Requisições sem token ou com token inválido/expirado retornam `401`. O CRUD de `/clientes` propriamente dito chega na Fase 5 — por ora as regras acima já valem para qualquer rota sob esse prefixo.
+
+Em produção, sobrescreva o segredo padrão via variável de ambiente `JWT_SECRET` (nunca reutilize o valor de desenvolvimento do `application.yml`).
 
 ## Verificando se está no ar
 
@@ -101,3 +129,10 @@ src/main/java/com/sea/backend
 - **Email**: `endereco`.
 
 As regras de validação, mascaramento (CPF/telefone/CEP) e os endpoints de CRUD ainda não foram implementados — chegam nas próximas fases.
+
+## Segurança (Fase 2)
+
+- Autenticação stateless via JWT (`jjwt`, HS256, expiração curta).
+- `JwtAuthenticationFilter` valida o token e popula o contexto de segurança em cada requisição.
+- Falhas de autenticação/autorização nunca vazam stacktrace: `RestAuthErrorHandler` trata 401/403 no filtro de segurança, e `GlobalExceptionHandler` trata os demais erros (`@ControllerAdvice`).
+- Headers de segurança aplicados em todas as respostas: `X-Content-Type-Options`, `X-Frame-Options`, `Content-Security-Policy`, `Cache-Control`.

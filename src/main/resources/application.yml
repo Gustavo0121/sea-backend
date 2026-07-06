@@ -17,6 +17,10 @@ spring:
         dialect: com.sea.backend.config.SQLiteDialect
         format_sql: true
 
+jwt:
+  secret: ${JWT_SECRET:yCfuNSDLw5dsS1X9BPyN8d0S434U-gbo504uejd_lm2ZhvvBWdU9bx4oBXFJhDt0}
+  expiration-ms: ${JWT_EXPIRATION_MS:900000}
+
 server:
   port: 8080
   error:
