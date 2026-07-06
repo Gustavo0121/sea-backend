@@ -32,13 +32,22 @@ public class ClienteMapper {
                 DigitExtractor.onlyDigits(dto.getCpf()),
                 enderecoMapper.toEntity(dto.getEndereco())
         );
-        for (Telefone telefone : toTelefones(dto)) {
-            cliente.addTelefone(telefone);
-        }
-        for (Email email : toEmails(dto)) {
-            cliente.addEmail(email);
-        }
+        substituirTelefonesEEmails(cliente, dto);
         return cliente;
+    }
+
+    /**
+     * Mutates a managed Cliente in place instead of building a new one: Endereco/Telefone/Email
+     * are cascade+orphanRemoval children, so replacing the Cliente reference itself would orphan
+     * (and delete) everything under the old instance instead of updating it.
+     */
+    public void atualizarEntity(ClienteRequestDTO dto, Cliente cliente) {
+        cliente.setNome(TextSanitizer.sanitize(dto.getNome()));
+        cliente.setCpf(DigitExtractor.onlyDigits(dto.getCpf()));
+        enderecoMapper.atualizarEntity(dto.getEndereco(), cliente.getEndereco());
+        cliente.getTelefones().clear();
+        cliente.getEmails().clear();
+        substituirTelefonesEEmails(cliente, dto);
     }
 
     public ClienteResponseDTO toResponseDTO(Cliente cliente) {
@@ -50,6 +59,15 @@ public class ClienteMapper {
                 cliente.getTelefones().stream().map(telefoneMapper::toResponseDTO).collect(Collectors.toList()),
                 cliente.getEmails().stream().map(emailMapper::toResponseDTO).collect(Collectors.toList())
         );
+    }
+
+    private void substituirTelefonesEEmails(Cliente cliente, ClienteRequestDTO dto) {
+        for (Telefone telefone : toTelefones(dto)) {
+            cliente.addTelefone(telefone);
+        }
+        for (Email email : toEmails(dto)) {
+            cliente.addEmail(email);
+        }
     }
 
     private List<Telefone> toTelefones(ClienteRequestDTO dto) {

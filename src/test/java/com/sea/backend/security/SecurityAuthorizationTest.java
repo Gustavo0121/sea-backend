@@ -16,9 +16,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * /clientes only exists as an authorization contract until Phase 5 implements the controller;
- * a 404 here proves the request passed security and reached (the still-missing) dispatch,
- * which is enough to confirm the role rule allowed it through.
+ * Focuses purely on the role-based authorization contract for /clientes; CRUD business behavior
+ * (masking, duplicidade de CPF, etc.) is covered by ClienteControllerTest/ClienteServiceTest.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -46,10 +45,10 @@ class SecurityAuthorizationTest {
     @Test
     void deveDeixarAdminEUserLeremClientes() throws Exception {
         mockMvc.perform(get("/clientes").header(HttpHeaders.AUTHORIZATION, bearer(Role.ADMIN)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/clientes").header(HttpHeaders.AUTHORIZATION, bearer(Role.USER)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -63,9 +62,11 @@ class SecurityAuthorizationTest {
     }
 
     @Test
-    void deveDeixarAdminEscreverClientes() throws Exception {
+    void deveDeixarAdminPassarDaAutorizacaoParaEscreverClientes() throws Exception {
+        // Corpo vazio: o objetivo aqui é confirmar que a role ADMIN não é barreira (403/401) —
+        // a falha de validação (400) prova que a requisição chegou ao controller.
         mockMvc.perform(post("/clientes").header(HttpHeaders.AUTHORIZATION, bearer(Role.ADMIN)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

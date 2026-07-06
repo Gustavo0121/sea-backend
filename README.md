@@ -2,7 +2,7 @@
 
 API REST para cadastro de clientes (CRUD), com autenticação e autorização por perfil (Admin / Usuário Padrão).
 
-> Projeto em desenvolvimento incremental. Login (JWT) e autorização por perfil já estão prontos (Fase 2), assim como os DTOs, validações e mappers do domínio Cliente (Fase 3) e a consulta de CEP via ViaCEP (Fase 4). O CRUD de `/clientes` propriamente dito (Controller/Service/Repository) chega na Fase 5.
+> Projeto em desenvolvimento incremental. Autenticação (Fase 2), DTOs/validações/mappers de Cliente (Fase 3), consulta de CEP via ViaCEP (Fase 4) e o CRUD completo de clientes (Fase 5) já estão implementados. Faltam hardening/segurança transversal (Fase 7) e a suíte de testes com cobertura mínima de 80% (Fase 8).
 
 ## Stack
 
@@ -76,7 +76,7 @@ Regras de autorização:
 | `DELETE /clientes/{id}`       | ✅    | ❌ (403) |
 | `GET /enderecos/{cep}`        | ✅    | ❌ (403) |
 
-Requisições sem token ou com token inválido/expirado retornam `401`. O CRUD de `/clientes` propriamente dito chega na Fase 5 — por ora as regras acima já valem para qualquer rota sob esse prefixo.
+Requisições sem token ou com token inválido/expirado retornam `401`.
 
 Em produção, sobrescreva o segredo padrão via variável de ambiente `JWT_SECRET` (nunca reutilize o valor de desenvolvimento do `application.yml`).
 
@@ -129,15 +129,20 @@ src/main/java/com/sea/backend
 - **Telefone**: `tipo` (`RESIDENCIAL`, `COMERCIAL`, `CELULAR`) e `numero`.
 - **Email**: `endereco`.
 
+## Segurança (Fase 2)
+
+- Autenticação stateless via JWT (`jjwt`, HS256, expiração curta).
+- `JwtAuthenticationFilter` valida o token e popula o contexto de segurança em cada requisição.
+- Falhas de autenticação/autorização nunca vazam stacktrace: `RestAuthErrorHandler` trata 401/403 no filtro de segurança, e `GlobalExceptionHandler` trata os demais erros (`@ControllerAdvice`).
+- Headers de segurança aplicados em todas as respostas: `X-Content-Type-Options`, `X-Frame-Options`, `Content-Security-Policy`, `Cache-Control`.
+
 ## DTOs, validação e mapeamento (Fase 3)
 
-Os contratos de entrada/saída de `Cliente` já estão prontos, embora ainda sem endpoint (chega na Fase 5):
+Os contratos de entrada/saída de `Cliente`:
 
 - **`ClienteRequestDTO`** (entrada): `nome` (3-100 caracteres, apenas letras/números/espaços), `cpf` (validado por dígito verificador via `@CpfValido`), `endereco` (`EnderecoRequestDTO` aninhado), `telefones`/`emails` (listas, mínimo 1 item cada). `TelefoneRequestDTO` valida a quantidade de dígitos conforme o `tipo` (`@TelefoneValido`: 11 dígitos para `CELULAR`, 10 para `RESIDENCIAL`/`COMERCIAL`).
 - **`ClienteResponseDTO`** (saída): nunca expõe a Entity — CPF, CEP e telefone já retornam mascarados.
-- **`ClienteMapper`** (+ `EnderecoMapper`, `TelefoneMapper`, `EmailMapper`, em `mapper/`): convertem DTO ↔ Entity, normalizando entrada (`utils.DigitExtractor` extrai só dígitos de CPF/CEP/telefone, `utils.TextSanitizer` colapsa espaços duplicados e remove caracteres de risco de XSS) e mascarando saída (`utils.MaskUtils`).
-
-A checagem de duplicidade de CPF depende do `ClienteRepository`/`ClienteService`, ainda inexistentes — fica para a Fase 5 junto com o restante do CRUD.
+- **`ClienteMapper`** (+ `EnderecoMapper`, `TelefoneMapper`, `EmailMapper`, em `mapper/`): convertem DTO ↔ Entity, normalizando entrada (`utils.DigitExtractor` extrai só dígitos de CPF/CEP/telefone, `utils.TextSanitizer` colapsa espaços duplicados e remove caracteres de risco de XSS) e mascarando saída (`utils.MaskUtils`). `atualizarEntity` faz a mesma normalização mutando a entidade gerenciada em vez de recriá-la, preservando o `Endereco`/`Telefone`/`Email` já persistidos (evita órfãos indesejados no `cascade + orphanRemoval`).
 
 ## Consulta de CEP via ViaCEP (Fase 4)
 
@@ -157,9 +162,25 @@ Resposta (mesmo formato de `EnderecoResponseDTO`, pronta para pré-preencher o f
 - Respostas são cacheadas em memória (`ConcurrentMapCacheManager`, cache `enderecos-cep`) por CEP normalizado (dígitos), evitando chamadas repetidas ao mesmo endereço.
 - Restrito a `ADMIN`, já que só esse perfil cria/edita clientes.
 
-## Segurança (Fase 2)
+## CRUD de clientes (Fase 5)
 
-- Autenticação stateless via JWT (`jjwt`, HS256, expiração curta).
-- `JwtAuthenticationFilter` valida o token e popula o contexto de segurança em cada requisição.
-- Falhas de autenticação/autorização nunca vazam stacktrace: `RestAuthErrorHandler` trata 401/403 no filtro de segurança, e `GlobalExceptionHandler` trata os demais erros (`@ControllerAdvice`).
-- Headers de segurança aplicados em todas as respostas: `X-Content-Type-Options`, `X-Frame-Options`, `Content-Security-Policy`, `Cache-Control`.
+```bash
+# Criar (ADMIN)
+curl -X POST http://localhost:8080/clientes \
+  -H "Authorization: Bearer <token-admin>" -H "Content-Type: application/json" \
+  -d '{"nome":"João da Silva","cpf":"111.444.777-35","endereco":{"cep":"01310-100","logradouro":"Av. Paulista","bairro":"Bela Vista","cidade":"São Paulo","uf":"SP"},"telefones":[{"tipo":"CELULAR","numero":"11987654321"}],"emails":[{"endereco":"joao@example.com"}]}'
+
+# Listar (ADMIN ou USER) — paginado, com ordenação e filtros
+curl "http://localhost:8080/clientes?nome=joao&page=0&size=10&sort=nome,asc" \
+  -H "Authorization: Bearer <token>"
+
+# Buscar por id, atualizar (ADMIN) e excluir (ADMIN)
+curl http://localhost:8080/clientes/1 -H "Authorization: Bearer <token>"
+curl -X PUT http://localhost:8080/clientes/1 -H "Authorization: Bearer <token-admin>" -H "Content-Type: application/json" -d '{...}'
+curl -X DELETE http://localhost:8080/clientes/1 -H "Authorization: Bearer <token-admin>"
+```
+
+- `GET /clientes` aceita `nome`/`cpf` (busca parcial, case-insensitive para nome) e os parâmetros padrão do Spring `Pageable` (`page`, `size`, `sort`); filtros ausentes não restringem o resultado.
+- CPF duplicado retorna `409` (`CpfDuplicadoException`); cliente inexistente em `GET/PUT/DELETE /clientes/{id}` retorna `404` (`ClienteNaoEncontradoException`); corpo ausente/malformado retorna `400`.
+- `ClienteRepository` usa apenas queries derivadas do Spring Data (parametrizadas, sem concatenação de String).
+- Atualização (`PUT`) muta a entidade gerenciada em vez de substituí-la — necessário porque `Endereco`/`Telefone`/`Email` são filhos `cascade + orphanRemoval` do `Cliente`.
