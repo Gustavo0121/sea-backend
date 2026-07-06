@@ -2,7 +2,7 @@
 
 API REST para cadastro de clientes (CRUD), com autenticação e autorização por perfil (Admin / Usuário Padrão).
 
-> Projeto em desenvolvimento incremental. Nesta fase (Fase 2 — autenticação e autorização) a API já expõe `POST /auth/login` (JWT com expiração curta) e protege rotas por perfil (`ADMIN` / `USER`) via Spring Security stateless. O CRUD de clientes ainda chega nas próximas fases.
+> Projeto em desenvolvimento incremental. Login (JWT) e autorização por perfil já estão prontos (Fase 2), assim como os DTOs, validações e mappers do domínio Cliente (Fase 3). O CRUD de `/clientes` propriamente dito (Controller/Service/Repository) chega na Fase 5.
 
 ## Stack
 
@@ -128,7 +128,15 @@ src/main/java/com/sea/backend
 - **Telefone**: `tipo` (`RESIDENCIAL`, `COMERCIAL`, `CELULAR`) e `numero`.
 - **Email**: `endereco`.
 
-As regras de validação, mascaramento (CPF/telefone/CEP) e os endpoints de CRUD ainda não foram implementados — chegam nas próximas fases.
+## DTOs, validação e mapeamento (Fase 3)
+
+Os contratos de entrada/saída de `Cliente` já estão prontos, embora ainda sem endpoint (chega na Fase 5):
+
+- **`ClienteRequestDTO`** (entrada): `nome` (3-100 caracteres, apenas letras/números/espaços), `cpf` (validado por dígito verificador via `@CpfValido`), `endereco` (`EnderecoRequestDTO` aninhado), `telefones`/`emails` (listas, mínimo 1 item cada). `TelefoneRequestDTO` valida a quantidade de dígitos conforme o `tipo` (`@TelefoneValido`: 11 dígitos para `CELULAR`, 10 para `RESIDENCIAL`/`COMERCIAL`).
+- **`ClienteResponseDTO`** (saída): nunca expõe a Entity — CPF, CEP e telefone já retornam mascarados.
+- **`ClienteMapper`** (+ `EnderecoMapper`, `TelefoneMapper`, `EmailMapper`, em `mapper/`): convertem DTO ↔ Entity, normalizando entrada (`utils.DigitExtractor` extrai só dígitos de CPF/CEP/telefone, `utils.TextSanitizer` colapsa espaços duplicados e remove caracteres de risco de XSS) e mascarando saída (`utils.MaskUtils`).
+
+A checagem de duplicidade de CPF depende do `ClienteRepository`/`ClienteService`, ainda inexistentes — fica para a Fase 5 junto com o restante do CRUD.
 
 ## Segurança (Fase 2)
 
