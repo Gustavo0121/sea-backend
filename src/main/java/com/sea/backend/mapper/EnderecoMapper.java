@@ -22,6 +22,15 @@ public class EnderecoMapper {
         );
     }
 
+    public void atualizarEntity(EnderecoRequestDTO dto, Endereco endereco) {
+        endereco.setCep(DigitExtractor.onlyDigits(dto.getCep()));
+        endereco.setLogradouro(TextSanitizer.sanitize(dto.getLogradouro()));
+        endereco.setBairro(TextSanitizer.sanitize(dto.getBairro()));
+        endereco.setCidade(TextSanitizer.sanitize(dto.getCidade()));
+        endereco.setUf(dto.getUf().toUpperCase());
+        endereco.setComplemento(TextSanitizer.sanitize(dto.getComplemento()));
+    }
+
     public EnderecoResponseDTO toResponseDTO(Endereco endereco) {
         return new EnderecoResponseDTO(
                 MaskUtils.maskCep(endereco.getCep()),
