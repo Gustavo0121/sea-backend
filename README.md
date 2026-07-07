@@ -2,7 +2,7 @@
 
 API REST para cadastro de clientes (CRUD), com autenticação e autorização por perfil (Admin / Usuário Padrão).
 
-> Projeto em desenvolvimento incremental. Autenticação (Fase 2), DTOs/validações/mappers de Cliente (Fase 3), consulta de CEP via ViaCEP (Fase 4), o CRUD completo de clientes (Fase 5) e o tratamento global de erros/logging seguro (Fase 6) já estão implementados. Faltam hardening/segurança transversal (Fase 7) e o gate de cobertura mínima de 80% no build (Fase 8).
+> Projeto em desenvolvimento incremental. Autenticação (Fase 2), DTOs/validações/mappers de Cliente (Fase 3), consulta de CEP via ViaCEP (Fase 4), o CRUD completo de clientes (Fase 5), o tratamento global de erros/logging seguro (Fase 6) e o hardening/checklist de segurança (Fase 7) já estão implementados. Falta apenas o gate de cobertura mínima de 80% no build (Fase 8).
 
 ## Stack
 
@@ -213,3 +213,12 @@ Falhas do filtro de segurança (401/403) nunca chegam ao `@ControllerAdvice` —
 - `GlobalExceptionHandler` não loga `ex.getMessage()` de corpo malformado (`HttpMessageNotReadableException`), pois o Jackson pode ecoar um trecho do payload original (que poderia conter a senha de `/auth/login`).
 
 A regra é verificada automaticamente em `LoggingSecurityTest`, que captura os logs da aplicação durante login (com e sem sucesso) e cadastro de cliente, e falha se senha, token ou CPF completo aparecerem em qualquer linha.
+
+## Segurança e hardening (Fase 7)
+
+Checklist completo (injeção, mass assignment, XSS, controle de acesso, JWT, headers, CORS, logging, CVEs de dependências e mapeamento OWASP Top 10/ASVS) em [`SECURITY.md`](SECURITY.md). Dois gaps reais foram encontrados e corrigidos nesta fase:
+
+- `EmailMapper` não sanitizava o endereço de e-mail antes de persistir (os demais campos de texto livre já sanitizavam) — corrigido.
+- `GET /clientes/{id}` com `id` não numérico e `GET /clientes?sort=<propriedade-inexistente>` retornavam `500` em vez de `400` — `GlobalExceptionHandler` agora trata `MethodArgumentTypeMismatchException` e `PropertyReferenceException` explicitamente.
+
+`org.yaml:snakeyaml` foi sobrescrito para `2.2` (a versão pinada pelo `spring-boot-starter-parent` é a `1.30`, alvo da CVE-2022-1471) via propriedade no `pom.xml`.
