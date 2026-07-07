@@ -1,5 +1,7 @@
 package com.sea.backend.security;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -15,9 +17,13 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * The raw JWT string is never logged — only the fact that a token was rejected.
+ */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtTokenProvider tokenProvider;
 
@@ -29,8 +35,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String token = resolveToken(request);
-        if (token != null && tokenProvider.isValid(token)) {
-            authenticate(token);
+        if (token != null) {
+            if (tokenProvider.isValid(token)) {
+                authenticate(token);
+            } else {
+                log.debug("Token JWT inválido ou expirado recebido em {}.", request.getRequestURI());
+            }
         }
         filterChain.doFilter(request, response);
     }
