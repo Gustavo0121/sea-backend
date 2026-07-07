@@ -53,19 +53,9 @@ public class Cliente {
         telefone.setCliente(this);
     }
 
-    public void removeTelefone(Telefone telefone) {
-        telefones.remove(telefone);
-        telefone.setCliente(null);
-    }
-
     public void addEmail(Email email) {
         emails.add(email);
         email.setCliente(this);
-    }
-
-    public void removeEmail(Email email) {
-        emails.remove(email);
-        email.setCliente(null);
     }
 
     public Long getId() {

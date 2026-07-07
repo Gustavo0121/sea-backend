@@ -2,6 +2,8 @@ package com.sea.backend.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sea.backend.exception.ErrorResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
@@ -17,9 +19,12 @@ import java.io.IOException;
 /**
  * Converts security failures raised inside the filter chain (before any @ControllerAdvice
  * can see them) into the same JSON error shape used elsewhere in the API, with no stacktrace.
+ * Logs only method/path — never the Authorization header or token contents.
  */
 @Component
 public class RestAuthErrorHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(RestAuthErrorHandler.class);
 
     private final ObjectMapper objectMapper;
 
@@ -30,12 +35,14 @@ public class RestAuthErrorHandler implements AuthenticationEntryPoint, AccessDen
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                           AuthenticationException authException) throws IOException {
+        log.warn("Requisição não autenticada: {} {}.", request.getMethod(), request.getRequestURI());
         writeError(request, response, HttpStatus.UNAUTHORIZED, "Credenciais inválidas ou token ausente/expirado.");
     }
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                         AccessDeniedException accessDeniedException) throws IOException {
+        log.warn("Acesso negado: {} {}.", request.getMethod(), request.getRequestURI());
         writeError(request, response, HttpStatus.FORBIDDEN, "Acesso negado para este recurso.");
     }
 

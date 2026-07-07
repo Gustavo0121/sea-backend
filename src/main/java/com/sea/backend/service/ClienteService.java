@@ -8,14 +8,23 @@ import com.sea.backend.exception.CpfDuplicadoException;
 import com.sea.backend.mapper.ClienteMapper;
 import com.sea.backend.repository.ClienteRepository;
 import com.sea.backend.utils.DigitExtractor;
+import com.sea.backend.utils.MaskUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Audit logs here only ever carry the cliente id and the masked CPF (MaskUtils.maskCpf) —
+ * the raw CPF digits are never passed to the logger.
+ */
 @Service
 @Transactional
 public class ClienteService {
+
+    private static final Logger log = LoggerFactory.getLogger(ClienteService.class);
 
     private final ClienteRepository clienteRepository;
     private final ClienteMapper clienteMapper;
@@ -31,7 +40,9 @@ public class ClienteService {
             throw new CpfDuplicadoException();
         }
         Cliente cliente = clienteMapper.toEntity(dto);
-        return clienteMapper.toResponseDTO(clienteRepository.save(cliente));
+        Cliente salvo = clienteRepository.save(cliente);
+        log.info("Cliente cadastrado: id={}, cpf={}.", salvo.getId(), MaskUtils.maskCpf(cpf));
+        return clienteMapper.toResponseDTO(salvo);
     }
 
     @Transactional(readOnly = true)
@@ -55,11 +66,15 @@ public class ClienteService {
             throw new CpfDuplicadoException();
         }
         clienteMapper.atualizarEntity(dto, cliente);
-        return clienteMapper.toResponseDTO(clienteRepository.save(cliente));
+        Cliente salvo = clienteRepository.save(cliente);
+        log.info("Cliente atualizado: id={}, cpf={}.", salvo.getId(), MaskUtils.maskCpf(cpf));
+        return clienteMapper.toResponseDTO(salvo);
     }
 
     public void excluir(Long id) {
-        clienteRepository.delete(buscarEntidadePorId(id));
+        Cliente cliente = buscarEntidadePorId(id);
+        clienteRepository.delete(cliente);
+        log.info("Cliente excluído: id={}.", id);
     }
 
     private Cliente buscarEntidadePorId(Long id) {
