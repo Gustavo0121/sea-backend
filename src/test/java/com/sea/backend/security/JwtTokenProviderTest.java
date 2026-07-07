@@ -35,7 +35,13 @@ class JwtTokenProviderTest {
         JwtTokenProvider provider = new JwtTokenProvider(SECRET, 60_000);
 
         String token = provider.generateToken("admin", Role.ADMIN);
-        String adulterado = token.substring(0, token.length() - 1) + (token.endsWith("a") ? "b" : "a");
+        // O ultimo caractere base64url da assinatura HS256 carrega bits de padding ignorados na
+        // decodificacao, entao adulterar exatamente ele pode, por acaso, gerar a mesma assinatura.
+        // Usamos o penultimo caractere, que sempre carrega bits significativos.
+        int posicao = token.length() - 2;
+        char original = token.charAt(posicao);
+        char substituto = original == 'a' ? 'b' : 'a';
+        String adulterado = token.substring(0, posicao) + substituto + token.substring(posicao + 1);
 
         assertThat(provider.isValid(adulterado)).isFalse();
     }
