@@ -2,7 +2,7 @@
 
 API REST para cadastro de clientes (CRUD), com autenticação e autorização por perfil (Admin / Usuário Padrão).
 
-> Projeto em desenvolvimento incremental. Autenticação (Fase 2), DTOs/validações/mappers de Cliente (Fase 3), consulta de CEP via ViaCEP (Fase 4) e o CRUD completo de clientes (Fase 5) já estão implementados. Faltam hardening/segurança transversal (Fase 7) e a suíte de testes com cobertura mínima de 80% (Fase 8).
+> Projeto em desenvolvimento incremental. Autenticação (Fase 2), DTOs/validações/mappers de Cliente (Fase 3), consulta de CEP via ViaCEP (Fase 4), o CRUD completo de clientes (Fase 5) e o tratamento global de erros/logging seguro (Fase 6) já estão implementados. Faltam hardening/segurança transversal (Fase 7) e o gate de cobertura mínima de 80% no build (Fase 8).
 
 ## Stack
 
@@ -184,3 +184,32 @@ curl -X DELETE http://localhost:8080/clientes/1 -H "Authorization: Bearer <token
 - CPF duplicado retorna `409` (`CpfDuplicadoException`); cliente inexistente em `GET/PUT/DELETE /clientes/{id}` retorna `404` (`ClienteNaoEncontradoException`); corpo ausente/malformado retorna `400`.
 - `ClienteRepository` usa apenas queries derivadas do Spring Data (parametrizadas, sem concatenação de String).
 - Atualização (`PUT`) muta a entidade gerenciada em vez de substituí-la — necessário porque `Endereco`/`Telefone`/`Email` são filhos `cascade + orphanRemoval` do `Cliente`.
+
+## Tratamento de erros e logging seguro (Fase 6)
+
+Todo erro da API (validação, negócio, autenticação/autorização ou falha inesperada) responde no mesmo formato, sem stacktrace:
+
+```json
+{ "timestamp": "2026-07-07T18:00:00Z", "status": 404, "message": "Cliente não encontrado: 99", "path": "/clientes/99" }
+```
+
+| Cenário                                    | Status | Origem |
+|---------------------------------------------|:------:|--------|
+| Corpo/DTO inválido                          | 400    | `GlobalExceptionHandler` (`@ControllerAdvice`) |
+| Sem token / token inválido ou expirado      | 401    | `RestAuthErrorHandler` (filtro de segurança) |
+| Autenticado, mas sem permissão para a rota  | 403    | `RestAuthErrorHandler` (filtro de segurança) |
+| Cliente ou CEP não encontrado               | 404    | `GlobalExceptionHandler` |
+| CPF duplicado                               | 409    | `GlobalExceptionHandler` |
+| ViaCEP indisponível/timeout                 | 503    | `GlobalExceptionHandler` |
+| Erro interno inesperado                     | 500    | `GlobalExceptionHandler` (mensagem genérica ao cliente; stacktrace só no log do servidor) |
+
+Falhas do filtro de segurança (401/403) nunca chegam ao `@ControllerAdvice` — são tratadas antes, no `RestAuthErrorHandler`, com o mesmo formato de resposta.
+
+**Logging (SLF4J/Logback):** todos os pontos que manipulam dado sensível logam apenas o necessário para auditoria, nunca o valor sensível em si:
+
+- `AuthService` loga o login tentado (usuário) em sucesso/falha — nunca a senha.
+- `ClienteService` loga `id` + CPF **mascarado** (`MaskUtils.maskCpf`) ao cadastrar/atualizar/excluir — nunca o CPF completo.
+- `JwtAuthenticationFilter`/`RestAuthErrorHandler` logam que um token foi rejeitado ou que houve acesso negado — nunca o token/header `Authorization`.
+- `GlobalExceptionHandler` não loga `ex.getMessage()` de corpo malformado (`HttpMessageNotReadableException`), pois o Jackson pode ecoar um trecho do payload original (que poderia conter a senha de `/auth/login`).
+
+A regra é verificada automaticamente em `LoggingSecurityTest`, que captura os logs da aplicação durante login (com e sem sucesso) e cadastro de cliente, e falha se senha, token ou CPF completo aparecerem em qualquer linha.
