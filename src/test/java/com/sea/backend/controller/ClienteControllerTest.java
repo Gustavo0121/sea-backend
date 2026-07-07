@@ -163,6 +163,12 @@ class ClienteControllerTest {
         mockMvc.perform(get("/clientes")).andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void deveRetornar400QuandoIdNaoENumerico() throws Exception {
+        mockMvc.perform(get("/clientes/abc").header(HttpHeaders.AUTHORIZATION, bearer(Role.ADMIN)))
+                .andExpect(status().isBadRequest());
+    }
+
     private ClienteRequestDTO clienteRequestValido() {
         ClienteRequestDTO dto = new ClienteRequestDTO();
         dto.setNome("João da Silva");

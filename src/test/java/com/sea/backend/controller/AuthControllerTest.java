@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,6 +67,16 @@ class AuthControllerTest {
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(loginRequest("", ""))))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deveExporHeadersDeSegurancaMesmoSendoRotaPublica() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(loginRequest("admin", "123qwe!@#"))))
+                .andExpect(header().exists("X-Content-Type-Options"))
+                .andExpect(header().exists("X-Frame-Options"))
+                .andExpect(header().exists("Content-Security-Policy"));
     }
 
     private LoginRequest loginRequest(String login, String senha) {

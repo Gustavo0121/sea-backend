@@ -24,6 +24,8 @@
         <springdoc-openapi.version>1.8.0</springdoc-openapi.version>
         <jacoco.version>0.8.13</jacoco.version>
         <jjwt.version>0.11.5</jjwt.version>
+        <!-- Override the version pinned by spring-boot-starter-parent (1.30) to close CVE-2022-1471. -->
+        <snakeyaml.version>2.2</snakeyaml.version>
     </properties>
 
     <dependencies>

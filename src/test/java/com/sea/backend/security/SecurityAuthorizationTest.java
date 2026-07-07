@@ -77,6 +77,15 @@ class SecurityAuthorizationTest {
                 .andExpect(header().exists("Content-Security-Policy"));
     }
 
+    @Test
+    void deveExporHeadersDeSegurancaMesmoEmRespostaDeErro401() throws Exception {
+        mockMvc.perform(get("/clientes"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().exists("X-Content-Type-Options"))
+                .andExpect(header().exists("X-Frame-Options"))
+                .andExpect(header().exists("Content-Security-Policy"));
+    }
+
     private String bearer(Role role) {
         return "Bearer " + jwtTokenProvider.generateToken(role == Role.ADMIN ? "admin" : "user", role);
     }
