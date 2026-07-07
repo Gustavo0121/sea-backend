@@ -2,7 +2,7 @@
 
 API REST para cadastro de clientes (CRUD), com autenticação e autorização por perfil (Admin / Usuário Padrão).
 
-> Projeto em desenvolvimento incremental. Autenticação (Fase 2), DTOs/validações/mappers de Cliente (Fase 3), consulta de CEP via ViaCEP (Fase 4), o CRUD completo de clientes (Fase 5), o tratamento global de erros/logging seguro (Fase 6) e o hardening/checklist de segurança (Fase 7) já estão implementados. Falta apenas o gate de cobertura mínima de 80% no build (Fase 8).
+Todas as fases do plano de desenvolvimento estão implementadas: autenticação (Fase 2), DTOs/validações/mappers de Cliente (Fase 3), consulta de CEP via ViaCEP (Fase 4), CRUD completo de clientes (Fase 5), tratamento global de erros/logging seguro (Fase 6), hardening/checklist de segurança (Fase 7) e a suíte de testes com gate de cobertura mínima de 80% (Fase 8).
 
 ## Stack
 
@@ -102,7 +102,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=test
 mvn test
 ```
 
-O relatório de cobertura (Jacoco) é gerado em `target/site/jacoco/index.html` após a execução dos testes.
+`mvn test` já roda a suíte completa e o gate de cobertura do Jacoco (`jacoco:check`, executado na fase `test`) — o build falha se a cobertura de linha agregada do projeto (`BUNDLE`) ficar abaixo de **80%**. O relatório HTML é gerado em `target/site/jacoco/index.html`.
 
 ## Estrutura do projeto
 
@@ -222,3 +222,14 @@ Checklist completo (injeção, mass assignment, XSS, controle de acesso, JWT, he
 - `GET /clientes/{id}` com `id` não numérico e `GET /clientes?sort=<propriedade-inexistente>` retornavam `500` em vez de `400` — `GlobalExceptionHandler` agora trata `MethodArgumentTypeMismatchException` e `PropertyReferenceException` explicitamente.
 
 `org.yaml:snakeyaml` foi sobrescrito para `2.2` (a versão pinada pelo `spring-boot-starter-parent` é a `1.30`, alvo da CVE-2022-1471) via propriedade no `pom.xml`.
+
+## Testes e cobertura (Fase 8)
+
+103 testes cobrindo unidade (services, mappers, utils, validators), controller (`MockMvc`, autenticação/autorização por perfil) e integração (`ClienteRepositoryTest` contra SQLite real, `LoggingSecurityTest` fim-a-fim). Cobertura agregada atual: **~94% de linhas**.
+
+O gate de cobertura mínima de 80% está configurado no `pom.xml` (`jacoco-maven-plugin`, execução `check` na fase `test`, regra `BUNDLE`/`LINE`/`COVEREDRATIO ≥ 0.80`) — `mvn test` falha se a cobertura cair abaixo disso. O gate foi validado subindo o limite para `0.99` temporariamente (o build falhou como esperado, confirmando que a regra realmente é aplicada) antes de fixá-lo em `0.80`.
+
+Ao revisar a cobertura por classe nesta fase, dois ajustes reais surgiram (não apenas "inflar número"):
+
+- `ClienteMapper#atualizarEntity`/`EnderecoMapper#atualizarEntity` (fluxo de `PUT /clientes/{id}`) não tinham nenhum teste exercitando a implementação real — só o `ClienteServiceTest` (que usa um `ClienteMapper` mockado) e o `ClienteControllerTest` (que usa um `ClienteService` mockado) passavam por esse caminho. `ClienteMapperTest` ganhou um teste dedicado que comprova a mutação em vez de substituição do `Endereco` gerenciado e a troca de telefones/e-mails.
+- `Cliente#removeTelefone`/`Cliente#removeEmail` eram código morto — nunca chamados em nenhum lugar do projeto (a atualização usa `List#clear()` nas coleções gerenciadas, que o Hibernate já trata corretamente com `orphanRemoval = true`). Removidos em vez de testados artificialmente.
